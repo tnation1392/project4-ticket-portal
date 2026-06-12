@@ -185,15 +185,3 @@ project-4-ticket-portal/
     └── workflows/
 
 ```
-
----
-## Author Notes
-
-This project was built as a hands-on learning project to develop stronger skills in:
-
-- QA automation
-- Browser testing
-- API testing 
-- Test layering
-- CI/CD
-- Full-stack workflow validation
