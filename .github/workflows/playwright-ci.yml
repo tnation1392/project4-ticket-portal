@@ -1,12 +1,9 @@
 name: Playwright CI
-
-on:
-  push:
-    paths:
+paths:
       - "backend/**"
       - "frontend/**"
       - ".github/workflows/playwright-ci.yml"
-  pull_request:
+pull_request:
     paths:
       - "backend/**"
       - "frontend/**"
@@ -122,10 +119,29 @@ jobs:
           nohup npm run dev -- --host 127.0.0.1 --port 5173 > frontend.log 2>&1 &
           echo $! > frontend.pid
 
-      - name: Wait for backend and frontend
-        working-directory: frontend
+      - name: Wait for backend
         run: |
-          npx wait-on http://127.0.0.1:8000/health http://127.0.0.1:5173
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend did not become ready in time"
+          exit 1
+
+      - name: Wait for frontend
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 > /dev/null; then
+              echo "Frontend is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Frontend did not become ready in time"
+          exit 1
 
       # -------------------------
       # Run Playwright smoke tests
@@ -153,3 +169,19 @@ jobs:
       # -------------------------
       - name: Upload Playwright report
         if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: frontend/test-results
+          if-no-files-found: ignore
+
+on:
+  push:
