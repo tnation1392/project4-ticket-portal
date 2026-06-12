@@ -1,9 +1,12 @@
 name: Playwright CI
-paths:
+
+on:
+  push:
+    paths:
       - "backend/**"
       - "frontend/**"
       - ".github/workflows/playwright-ci.yml"
-pull_request:
+  pull_request:
     paths:
       - "backend/**"
       - "frontend/**"
@@ -182,6 +185,3 @@ jobs:
           name: playwright-test-results
           path: frontend/test-results
           if-no-files-found: ignore
-
-on:
-  push:
