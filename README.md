@@ -187,7 +187,7 @@ project-4-ticket-portal/
 ```
 
 ---
-Author Notes
+## Author Notes
 
 This project was built as a hands-on learning project to develop stronger skills in:
 
