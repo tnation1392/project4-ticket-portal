@@ -5,6 +5,7 @@ from app.core.security import get_password_hash
 from app.models import Ticket
 from app.models.user import User
 from tests.helpers.auth import login_and_get_headers
+from app.models.category import Category
 
 
 def create_active_category(db_session, name: str = "Hardware") -> Category:
