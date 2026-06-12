@@ -39,3 +39,9 @@ def update_category(db: Session, category: Category, payload: CategoryUpdate) ->
     if payload.description is not None:
         category.description = payload.description.strip() if payload.description else None
 
+    if payload.is_active is not None:
+        category.is_active = payload.is_active
+
+    db.commit()
+    db.refresh(category)
+    return category
