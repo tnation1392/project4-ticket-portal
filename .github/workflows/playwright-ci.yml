@@ -1,0 +1,155 @@
+name: Playwright CI
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/playwright-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/playwright-ci.yml"
+
+jobs:
+  playwright-smoke:
+    runs-on: ubuntu-latest
+
+    env:
+      APP_NAME: Ticket Portal API
+      JWT_SECRET_KEY: github-actions-dev-secret-key-1234567890
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # Python / backend setup
+      # -------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+
+      # -------------------------
+      # Node / frontend setup
+      # -------------------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+
+      # -------------------------
+      # Seed backend data
+      # -------------------------
+      - name: Initialize database and seed users
+        working-directory: backend
+        run: python -m app.db.init_db
+
+      - name: Seed default categories
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          from sqlalchemy import select
+          from app.db.session import SessionLocal
+          from app.models.category import Category
+          import app.models  # ensure models are registered
+
+          default_categories = [
+              ("Hardware", "Laptop, monitor, keyboard, printer, and device issues"),
+              ("Software", "Application, install, and update issues"),
+              ("Access Request", "Permission and access-related requests"),
+              ("Network", "VPN, internet, and connectivity issues"),
+              ("Other", "General support requests that do not fit another category"),
+          ]
+
+          db = SessionLocal()
+          try:
+              existing_names = {
+                  name for name in db.execute(select(Category.name)).scalars().all()
+              }
+
+              for name, description in default_categories:
+                  if name not in existing_names:
+                      db.add(
+                          Category(
+                              name=name,
+                              description=description,
+                              is_active=True,
+                          )
+                      )
+
+              db.commit()
+          finally:
+              db.close()
+          PY
+
+      # -------------------------
+      # Start backend/frontend
+      # -------------------------
+      - name: Start backend
+        working-directory: backend
+        run: |
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Start frontend
+        working-directory: frontend
+        run: |
+          nohup npm run dev -- --host 127.0.0.1 --port 5173 > frontend.log 2>&1 &
+          echo $! > frontend.pid
+
+      - name: Wait for backend and frontend
+        working-directory: frontend
+        run: |
+          npx wait-on http://127.0.0.1:8000/health http://127.0.0.1:5173
+
+      # -------------------------
+      # Run Playwright smoke tests
+      # -------------------------
+      - name: Run Playwright smoke tests
+        working-directory: frontend
+        run: |
+          npx playwright test e2e/ticket/create-ticket.spec.ts e2e/ticket/public-comment.spec.ts
+
+      # -------------------------
+      # Debug logs on failure
+      # -------------------------
+      - name: Show backend log on failure
+        if: failure()
+        working-directory: backend
+        run: cat backend.log || true
+
+      - name: Show frontend log on failure
+        if: failure()
+        working-directory: frontend
+        run: cat frontend.log || true
+
+      # -------------------------
+      # Upload Playwright artifacts
+      # -------------------------
+      - name: Upload Playwright report
+        if: always()
