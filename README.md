@@ -1,8 +1,6 @@
 # Ticket Portal
 
-A full-stack ticket management application built to practice **QA automation**, **browser testing**, and **role-based workflow validation** across the backend, frontend, and end-to-end layers.
-
-This project simulates a realistic internal support portal where employees create tickets, support agents work them through a workflow, and administrators manage categories and oversee the system.
+**Ticket Portal** is a full-stack support workflow application built to practice **QA automation**, **role-based workflow validation**, and **end-to-end browser testing** across the backend, frontend, and CI pipeline. The project simulates a realistic internal ticketing system where employees submit support requests, agents investigate and progress tickets through a lifecycle, and administrators manage categories and system-level behavior.
 
 ---
 
